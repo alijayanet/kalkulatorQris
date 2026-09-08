@@ -19,5 +19,5 @@ local.properties
 debug.keystore
 *.jks
 *.keystore
-*.apk
 *.aab
+!KalkulatorQRIS.apk

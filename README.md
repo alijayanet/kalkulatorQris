@@ -4,6 +4,16 @@ Aplikasi kasir kalkulator pintar Android modern untuk konversi **QRIS Statis men
 
 ---
 
+## 📥 Download APK Siap Pakai (Direct Download)
+
+Bagi Anda yang ingin langsung menginstal aplikasi di smartphone Android tanpa perlu build dari source code:
+
+[![Download APK](https://img.shields.io/badge/Download_APK-KalkulatorQRIS.apk-2ea44f?style=for-the-badge&logo=android)](https://github.com/alijayanet/kalkulatorQris/raw/main/KalkulatorQRIS.apk)
+
+👉 **[Klik Di Sini Untuk Download File APK (KalkulatorQRIS.apk)](https://github.com/alijayanet/kalkulatorQris/raw/main/KalkulatorQRIS.apk)** *(Ukuran: ~21.95 MB)*
+
+---
+
 ## 🌟 Fitur Utama
 
 - 🧮 **Kalkulator Kasir Multi-Item:** Perhitungan cepat (penjumlahan, desimal, perkalian item seperti `2.5 x 5000 + 10000`).
