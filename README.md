@@ -70,7 +70,6 @@ Aplikasi ini dikembangkan dan dikelola oleh:
 
 - **Pengembang:** **ALIJAYA-NET**
 - **WhatsApp:** **081947215703** ([Hubungi via WhatsApp](https://wa.me/6281947215703))
-- **Layanan:** Bantuan integrasi QRIS Dinamis, kustomisasi aplikasi kasir, dan pengadaan sistem cetak thermal Bluetooth.
 - **Repository GitHub:** [https://github.com/alijayanet/kalkulatorQris](https://github.com/alijayanet/kalkulatorQris)
 
 ---
