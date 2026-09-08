@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kebijakan Privasi — Kalkulator QRIS Dinamis</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; line-height: 1.7; color: #1a1a2e; background: #f8fafc; }
+        .container { max-width: 800px; margin: 0 auto; padding: 24px 20px; }
+        header { background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white; padding: 40px 20px; text-align: center; border-radius: 0 0 24px 24px; }
+        header h1 { font-size: 1.6em; margin-bottom: 8px; }
+        header p { opacity: 0.9; font-size: 0.95em; }
+        h2 { color: #4f46e5; margin-top: 32px; margin-bottom: 12px; font-size: 1.2em; border-left: 4px solid #6366f1; padding-left: 12px; }
+        h3 { color: #1e1b4b; margin-top: 20px; margin-bottom: 8px; font-size: 1em; }
+        p, li { margin-bottom: 8px; font-size: 0.95em; color: #374151; }
+        ul { padding-left: 24px; }
+        .card { background: white; border-radius: 16px; padding: 24px; margin-top: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+        .highlight { background: #eef2ff; border-radius: 10px; padding: 16px; margin: 16px 0; border-left: 4px solid #6366f1; }
+        .highlight p { margin: 0; color: #4338ca; font-weight: 500; }
+        footer { text-align: center; padding: 32px 20px; color: #9ca3af; font-size: 0.85em; }
+        a { color: #6366f1; }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>Kebijakan Privasi</h1>
+    <p>Aplikasi Kalkulator QRIS Dinamis</p>
+</header>
+
+<div class="container">
+    <div class="card">
+        <p><strong>Terakhir diperbarui:</strong> 1 September 2026</p>
+        <p>Kebijakan Privasi ini menjelaskan bagaimana aplikasi <strong>Kalkulator QRIS Dinamis</strong> ("Aplikasi", "Kami") menangani informasi pengguna. Kami sangat menghargai privasi Anda dan berkomitmen untuk melindungi data pribadi Anda.</p>
+    </div>
+
+    <div class="card">
+        <h2>1. Informasi yang Dikumpulkan</h2>
+        <p>Aplikasi ini dirancang untuk memproses data secara <strong>lokal di perangkat Anda</strong>. Kami <strong>tidak mengumpulkan, mengirim, atau menyimpan data pribadi Anda ke server eksternal manapun</strong>.</p>
+        
+        <h3>Data yang Diproses Secara Lokal:</h3>
+        <ul>
+            <li><strong>Data Profil Merchant:</strong> Nama toko, kota, kode pos, NMID, dan MPAN yang Anda masukkan disimpan secara terenkripsi di perangkat Anda menggunakan Android EncryptedSharedPreferences.</li>
+            <li><strong>Riwayat Transaksi:</strong> Data transaksi QRIS (nomor invoice, nominal, waktu, status) disimpan secara lokal menggunakan database Room (SQLite) di perangkat Anda.</li>
+            <li><strong>Data QRIS Statis:</strong> Payload QRIS dasar yang Anda upload atau masukkan disimpan terenkripsi di perangkat.</li>
+            <li><strong>Pengaturan Printer:</strong> Nama dan alamat MAC printer Bluetooth yang dipilih disimpan terenkripsi secara lokal.</li>
+        </ul>
+    </div>
+
+    <div class="card">
+        <h2>2. Izin Aplikasi (Permissions)</h2>
+        <p>Aplikasi ini memerlukan izin-izin berikut untuk berfungsi dengan baik:</p>
+        
+        <h3>🔵 Bluetooth (BLUETOOTH, BLUETOOTH_ADMIN, BLUETOOTH_CONNECT, BLUETOOTH_SCAN)</h3>
+        <p>Digunakan <strong>hanya</strong> untuk mendeteksi dan terhubung ke printer thermal Bluetooth yang telah dipasangkan (paired) dengan perangkat Anda, guna mencetak struk transaksi. Tidak digunakan untuk pelacakan lokasi atau pengumpulan data.</p>
+        
+        <h3>🔵 Penyimpanan (WRITE_EXTERNAL_STORAGE, READ_EXTERNAL_STORAGE)</h3>
+        <p>Digunakan <strong>hanya</strong> untuk menyimpan gambar kode QRIS dan struk transaksi ke Galeri perangkat Anda ketika Anda menekan tombol "Simpan ke Galeri". Izin ini hanya diperlukan pada Android 9 (API 28) ke bawah.</p>
+        
+        <h3>🔵 Notifikasi (POST_NOTIFICATIONS)</h3>
+        <p>Digunakan untuk menampilkan notifikasi lokal saat kode QRIS berhasil di-generate dan saat pembayaran berhasil diterima. Notifikasi ini sepenuhnya lokal dan tidak melibatkan server eksternal.</p>
+        
+        <h3>🔵 Internet (INTERNET)</h3>
+        <p>Digunakan untuk layanan Firebase App Check sebagai lapisan keamanan tambahan. Tidak ada data pribadi pengguna yang dikirim melalui koneksi internet.</p>
+    </div>
+
+    <div class="card">
+        <h2>3. Keamanan Data</h2>
+        <p>Kami menerapkan langkah-langkah keamanan untuk melindungi data Anda:</p>
+        <ul>
+            <li>Data sensitif merchant (NMID, MPAN, nama toko) disimpan menggunakan <strong>Android EncryptedSharedPreferences</strong> dengan enkripsi AES-256.</li>
+            <li>Semua data transaksi tersimpan di <strong>database lokal (Room/SQLite)</strong> yang hanya bisa diakses oleh aplikasi ini.</li>
+            <li>Tidak ada data yang dikirim ke server pihak ketiga.</li>
+            <li>Koneksi Bluetooth ke printer menggunakan protokol RFCOMM standar.</li>
+        </ul>
+    </div>
+
+    <div class="card">
+        <h2>4. Berbagi Data</h2>
+        <p>Aplikasi ini <strong>tidak membagikan data pribadi Anda</strong> kepada pihak ketiga manapun. Fitur "Bagikan" hanya membagikan gambar kode QRIS/struk yang Anda pilih secara eksplisit melalui mekanisme Android Share Sheet ke aplikasi pilihan Anda (WhatsApp, Email, dll).</p>
+    </div>
+
+    <div class="card">
+        <h2>5. Penyimpanan dan Penghapusan Data</h2>
+        <ul>
+            <li>Semua data tersimpan <strong>hanya di perangkat lokal Anda</strong>.</li>
+            <li>Anda dapat menghapus seluruh riwayat transaksi kapan saja melalui menu Riwayat → Hapus Semua.</li>
+            <li>Anda dapat mereset data profil merchant melalui menu Pengaturan.</li>
+            <li>Menghapus (uninstall) aplikasi akan menghapus semua data secara permanen dari perangkat Anda.</li>
+        </ul>
+    </div>
+
+    <div class="card">
+        <h2>6. Layanan Pihak Ketiga</h2>
+        <p>Aplikasi ini menggunakan layanan pihak ketiga berikut:</p>
+        <ul>
+            <li><strong>Firebase App Check:</strong> Digunakan untuk verifikasi integritas aplikasi. Tidak mengumpulkan data pribadi pengguna. <a href="https://firebase.google.com/support/privacy" target="_blank">Kebijakan Privasi Firebase</a></li>
+            <li><strong>ZXing:</strong> Library open-source untuk generate dan membaca kode QR. Diproses sepenuhnya secara lokal tanpa koneksi jaringan.</li>
+        </ul>
+    </div>
+
+    <div class="card">
+        <h2>7. Privasi Anak-Anak</h2>
+        <p>Aplikasi ini tidak ditujukan untuk anak-anak di bawah usia 13 tahun. Kami tidak secara sengaja mengumpulkan informasi pribadi dari anak-anak. Jika Anda adalah orang tua atau wali dan mengetahui bahwa anak Anda telah memberikan informasi pribadi, silakan hubungi kami.</p>
+    </div>
+
+    <div class="card">
+        <h2>8. Perubahan Kebijakan Privasi</h2>
+        <p>Kami dapat memperbarui Kebijakan Privasi ini dari waktu ke waktu. Perubahan akan diberitahukan melalui pembaruan aplikasi. Kami sarankan Anda meninjau halaman ini secara berkala.</p>
+    </div>
+
+    <div class="card">
+        <h2>9. Hubungi Kami</h2>
+        <p>Jika Anda memiliki pertanyaan atau saran mengenai Kebijakan Privasi atau aplikasi ini, silakan hubungi kami melalui:</p>
+        <div class="highlight">
+            <p>🏢 Pengembang: <strong>ALIJAYA-NET</strong></p>
+            <p>📱 WhatsApp: <strong>081947215703</strong> (<a href="https://wa.me/6281947215703" target="_blank">Chat WhatsApp</a>)</p>
+            <p>📧 Email: alijayanet@gmail.com</p>
+        </div>
+    </div>
+</div>
+
+<footer>
+    <p>&copy; 2026 Kalkulator QRIS Dinamis • ALIJAYA-NET. Hak Cipta Dilindungi.</p>
+    <p>WhatsApp: 081947215703 • Application ID: com.aistudio.qriscalc.vymk</p>
+</footer>
+
+</body>
+</html>

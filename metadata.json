@@ -1,0 +1,6 @@
+{
+  "name": "Kalkulator QRIS",
+  "description": "Aplikasi Kalkulator QRIS Dinamis pintar dengan nominal otomatis, riwayat transaksi, dashboard bisnis harian, cetak struk bluetooth, dan keamanan data terenkripsi.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
