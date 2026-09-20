@@ -196,39 +196,42 @@ object BluetoothThermalPrinter {
             append(ESC_BOLD_ON)
             appendLine("SCAN QRIS PEMBAYARAN")
             append(ESC_BOLD_OFF)
-            append(byteArrayOf(0x1B, 0x33, 0x18)) // ESC 3 24: set line spacing
+            
             val qrBytes = generateEscPosRasterQr(receipt.qrisPayload, paperWidthChars)
             if (qrBytes.isNotEmpty()) {
                 append(qrBytes)
-                appendLine()
+                append(byteArrayOf(0x0D, 0x0A))
             }
-            append(byteArrayOf(0x1B, 0x32)) // ESC 2: default line spacing
-            // Generous vertical margin (~1 cm) below the QR code image
-            append(byteArrayOf(0x0D, 0x0A, 0x0D, 0x0A))
+            
             appendLine("Scan via BCA, DANA, GoPay, OVO, dll.")
-            append(byteArrayOf(0x0D, 0x0A))
             append(ESC_ALIGN_LEFT)
             appendDashes()
         }
 
-        // Footer
+        // Keterangan / Footer Struk tepat di bawah QRIS (agar jika terpotong, yang terpotong adalah catatan footer bukan QRIS)
         append(ESC_ALIGN_CENTER)
+        append(ESC_BOLD_ON)
+        appendLine("--- CATATAN TRANSAKSI ---")
+        append(ESC_BOLD_OFF)
         val cleanFooter = receipt.footerMessage.ifBlank { "Terima Kasih Atas Kunjungan Anda!\nBarang yang sudah dibeli tidak dapat ditukar." }
         for (line in cleanFooter.split("\n")) {
             if (line.isNotBlank()) {
                 appendLine(line.trim())
             }
         }
-        append(byteArrayOf(0x0D, 0x0A))
         appendLine("Simpan struk ini sebagai bukti pembayaran sah.")
+        appendLine("Layanan: 081947215703 • ALIJAYA-NET")
+        append(ESC_ALIGN_CENTER)
+        appendLine("================================")
+        appendLine("*** TERIMA KASIH ***")
 
         // Multi-tier Paper Feed to guarantee paper rolls ~2.5 to 3 cm past the printer tear bar:
-        // Tier 1: 8 CRLF lines (works on 100% of printers)
-        for (i in 0 until 8) {
+        // Tier 1: 10 CRLF lines
+        for (i in 0 until 10) {
             append(byteArrayOf(0x0D, 0x0A))
         }
-        // Tier 2: ESC J 150 (advance 150 dots / ~19 mm)
-        append(byteArrayOf(0x1B, 0x4A, 150.toByte()))
+        // Tier 2: ESC J 180 (advance 180 dots / ~2.2 cm)
+        append(byteArrayOf(0x1B, 0x4A, 180.toByte()))
         // Tier 3: ESC d 6 (feed 6 lines)
         append(byteArrayOf(0x1B, 0x64, 0x06))
 
@@ -241,7 +244,7 @@ object BluetoothThermalPrinter {
      */
     fun generateEscPosRasterQr(payload: String, paperWidthChars: Int = 32): ByteArray {
         return try {
-            val qrSize = 256
+            val qrSize = 192 // 192 dots (height < 256 dots ensures yH=0, no 16-bit endian bugs)
             val qrBitmap = QrisEngine.generateQrBitmap(payload, qrSize)
             val totalDotsWidth = if (paperWidthChars >= 40) 576 else 384
             val totalBytesWidth = totalDotsWidth / 8
@@ -354,10 +357,18 @@ object BluetoothThermalPrinter {
 
             outputStream = socket.outputStream
             val bytes = buildEscPosBytes(receipt)
-            outputStream.write(bytes)
-            outputStream.flush()
-            // Give ample time for thermal head and motor to process data and feed paper completely
-            kotlinx.coroutines.delay(1800)
+            // Stream data in 512-byte packets to avoid serial buffer overrun on POS-58 printers
+            val chunkSize = 512
+            var offset = 0
+            while (offset < bytes.size) {
+                val len = minOf(chunkSize, bytes.size - offset)
+                outputStream.write(bytes, offset, len)
+                outputStream.flush()
+                offset += len
+                kotlinx.coroutines.delay(25)
+            }
+            // Give printer motor ample time to finish printing footer and feed paper completely
+            kotlinx.coroutines.delay(2000)
 
             val deviceName = try { device.name } catch (e: Exception) { null } ?: deviceAddress
             Result.success("Struk berhasil dicetak ke printer $deviceName! 🖨️")

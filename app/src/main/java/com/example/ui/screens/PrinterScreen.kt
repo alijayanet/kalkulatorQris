@@ -419,12 +419,29 @@ fun PrinterScreen(
                 )
 
                 Spacer(modifier = Modifier.height(4.dp))
-                val displayFooter = receiptFooter.ifBlank { "Terima Kasih Atas Kunjungan Anda!\nBarang yang dibeli tidak dapat ditukar." }
+                Text(
+                    text = "--- CATATAN TRANSAKSI ---",
+                    fontFamily = FontFamily.Monospace,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 10.sp,
+                    color = Color.Black,
+                    textAlign = TextAlign.Center
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                val displayFooter = receiptFooter.ifBlank { "Terima Kasih Atas Kunjungan Anda!\nBarang yang sudah dibeli tidak dapat ditukar." }
                 Text(
                     text = displayFooter,
                     fontFamily = FontFamily.Monospace,
                     fontSize = 10.sp,
                     color = Color.DarkGray,
+                    textAlign = TextAlign.Center
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = "Simpan struk ini sebagai bukti pembayaran sah.\nLayanan: 081947215703 • ALIJAYA-NET\n*** TERIMA KASIH ***",
+                    fontFamily = FontFamily.Monospace,
+                    fontSize = 9.sp,
+                    color = Color.Gray,
                     textAlign = TextAlign.Center
                 )
             }
