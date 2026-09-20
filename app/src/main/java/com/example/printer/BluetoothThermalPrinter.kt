@@ -6,6 +6,10 @@ import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothSocket
 import android.content.Context
 import com.example.qris.QrisEngine
+import com.google.zxing.BarcodeFormat
+import com.google.zxing.EncodeHintType
+import com.google.zxing.qrcode.QRCodeWriter
+import com.google.zxing.qrcode.decoder.ErrorCorrectionLevel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.OutputStream
@@ -199,10 +203,12 @@ object BluetoothThermalPrinter {
             
             val qrBytes = generateEscPosRasterQr(receipt.qrisPayload, paperWidthChars)
             if (qrBytes.isNotEmpty()) {
+                append(ESC_ALIGN_LEFT)
                 append(qrBytes)
                 append(byteArrayOf(0x0D, 0x0A))
             }
             
+            append(ESC_ALIGN_CENTER)
             appendLine("Scan via BCA, DANA, GoPay, OVO, dll.")
             append(ESC_ALIGN_LEFT)
             appendDashes()
@@ -225,40 +231,60 @@ object BluetoothThermalPrinter {
         appendLine("================================")
         appendLine("*** TERIMA KASIH ***")
 
-        // Multi-tier Paper Feed to guarantee paper rolls ~2.5 to 3 cm past the printer tear bar:
-        // Tier 1: 10 CRLF lines
-        for (i in 0 until 10) {
+        // Paper feed pas ~1 cm melewati gerigi pemotong (hemat kertas & rapi)
+        for (i in 0 until 3) {
             append(byteArrayOf(0x0D, 0x0A))
         }
-        // Tier 2: ESC J 180 (advance 180 dots / ~2.2 cm)
-        append(byteArrayOf(0x1B, 0x4A, 180.toByte()))
-        // Tier 3: ESC d 6 (feed 6 lines)
-        append(byteArrayOf(0x1B, 0x64, 0x06))
 
         return out.toByteArray()
     }
 
     /**
-     * Converts QR payload into standard ESC/POS Raster Bit Image (GS v 0) centered on paper.
-     * Universally supported on all 58mm & 80mm Bluetooth POS thermal printers.
+     * Converts QR payload into pixel-perfect ESC/POS Raster Bit Image (GS v 0).
+     * Uses ErrorCorrectionLevel.L and 4-module quiet zone with exact integer module dot scaling
+     * to eliminate thermal dot bleed and guarantee instant scanning on smartphone cameras.
      */
     fun generateEscPosRasterQr(payload: String, paperWidthChars: Int = 32): ByteArray {
         return try {
-            val qrSize = 192 // 192 dots (height < 256 dots ensures yH=0, no 16-bit endian bugs)
-            val qrBitmap = QrisEngine.generateQrBitmap(payload, qrSize)
-            val totalDotsWidth = if (paperWidthChars >= 40) 576 else 384
-            val totalBytesWidth = totalDotsWidth / 8
-            val qrBytesWidth = qrSize / 8
-            val leftMarginBytes = maxOf(0, (totalBytesWidth - qrBytesWidth) / 2)
+            val safeContent = if (payload.isNotBlank()) payload.trim() else QrisEngine.DEFAULT_STATIC_QRIS
+
+            // 1. Generate QR matrix with standard 4-module quiet zone and Low error correction for maximum dot boldness
+            val hints = mapOf(
+                EncodeHintType.ERROR_CORRECTION to ErrorCorrectionLevel.L,
+                EncodeHintType.MARGIN to 4,
+                EncodeHintType.CHARACTER_SET to "UTF-8"
+            )
+            val matrix = QRCodeWriter().encode(safeContent, BarcodeFormat.QR_CODE, 0, 0, hints)
+            val moduleCount = matrix.width // Total modules including 4-module quiet zone
+
+            // 2. Paper dot dimensions (384 dots for standard 58mm printer)
+            val totalPaperDots = if (paperWidthChars >= 40) 576 else 384
+            val totalBytesWidth = totalPaperDots / 8 // 48 bytes per line
+
+            // 3. Integer module scaling:
+            // For 58mm paper: 4 dots/module gives 212x212 dots (~26.5mm), perfect centering, fits within 1 byte (yH=0) so no 16-bit firmware bugs.
+            // For 80mm paper: 5 or 6 dots/module (~33-40mm).
+            val maxAllowedDots = if (paperWidthChars >= 40) 400 else 240
+            val dotsPerModule = maxOf(3, minOf(if (paperWidthChars >= 40) 6 else 4, maxAllowedDots / moduleCount))
+
+            val qrDotsWidth = moduleCount * dotsPerModule
+            val qrDotsHeight = moduleCount * dotsPerModule
+
+            // Align width to multiple of 8
+            val qrBytesWidth = (qrDotsWidth + 7) / 8
+            val actualWidthDots = qrBytesWidth * 8
+
+            val leftMarginDots = maxOf(0, (totalPaperDots - actualWidthDots) / 2)
+            val leftMarginBytes = leftMarginDots / 8
             val rightMarginBytes = maxOf(0, totalBytesWidth - qrBytesWidth - leftMarginBytes)
 
             val xL = (totalBytesWidth and 0xFF).toByte()
             val xH = ((totalBytesWidth shr 8) and 0xFF).toByte()
-            val yL = (qrSize and 0xFF).toByte()
-            val yH = ((qrSize shr 8) and 0xFF).toByte()
+            val yL = (qrDotsHeight and 0xFF).toByte()
+            val yH = ((qrDotsHeight shr 8) and 0xFF).toByte()
 
             val result = mutableListOf<Byte>()
-            // GS v 0 normal mode
+            // GS v 0 0: ESC/POS raster bit image command
             result.add(0x1D.toByte())
             result.add(0x76.toByte())
             result.add(0x30.toByte())
@@ -268,30 +294,40 @@ object BluetoothThermalPrinter {
             result.add(yL)
             result.add(yH)
 
-            for (y in 0 until qrSize) {
-                // Left margin blank dots
-                for (m in 0 until leftMarginBytes) {
-                    result.add(0x00.toByte())
-                }
-                // Monochrome QR code dots (1 = black, 0 = white)
-                for (byteCol in 0 until qrBytesWidth) {
-                    var byteVal = 0
-                    for (bit in 0 until 8) {
-                        val px = byteCol * 8 + bit
-                        val color = qrBitmap.getPixel(px, y)
-                        val r = (color shr 16) and 0xFF
-                        val g = (color shr 8) and 0xFF
-                        val b = color and 0xFF
-                        val isBlack = (r + g + b) / 3 < 128
-                        if (isBlack) {
-                            byteVal = byteVal or (1 shl (7 - bit))
+            // Render each module row
+            for (mY in 0 until moduleCount) {
+                // Repeat each row dotsPerModule times (vertical integer scaling)
+                for (subY in 0 until dotsPerModule) {
+                    // Left margin bytes
+                    for (m in 0 until leftMarginBytes) {
+                        result.add(0x00.toByte())
+                    }
+
+                    // QR image bytes
+                    var currentByte = 0
+                    var bitIndex = 7
+                    for (mX in 0 until moduleCount) {
+                        val isBlack = matrix.get(mX, mY)
+                        for (subX in 0 until dotsPerModule) {
+                            if (isBlack) {
+                                currentByte = currentByte or (1 shl bitIndex)
+                            }
+                            bitIndex--
+                            if (bitIndex < 0) {
+                                result.add(currentByte.toByte())
+                                currentByte = 0
+                                bitIndex = 7
+                            }
                         }
                     }
-                    result.add(byteVal.toByte())
-                }
-                // Right margin blank dots
-                for (m in 0 until rightMarginBytes) {
-                    result.add(0x00.toByte())
+                    if (bitIndex != 7) {
+                        result.add(currentByte.toByte())
+                    }
+
+                    // Right margin bytes
+                    for (m in 0 until rightMarginBytes) {
+                        result.add(0x00.toByte())
+                    }
                 }
             }
             result.toByteArray()
@@ -368,7 +404,7 @@ object BluetoothThermalPrinter {
                 kotlinx.coroutines.delay(25)
             }
             // Give printer motor ample time to finish printing footer and feed paper completely
-            kotlinx.coroutines.delay(2000)
+            kotlinx.coroutines.delay(1200)
 
             val deviceName = try { device.name } catch (e: Exception) { null } ?: deviceAddress
             Result.success("Struk berhasil dicetak ke printer $deviceName! 🖨️")
