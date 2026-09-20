@@ -50,6 +50,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.HourglassEmpty
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Paid
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PlaylistAdd
@@ -72,6 +73,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -624,7 +626,12 @@ private fun DynamicQrisCardView(
     val pairedPrinters by viewModel.pairedPrinters.collectAsState()
     val selectedPrinter by viewModel.selectedPrinter.collectAsState()
     val customerName by viewModel.customerName.collectAsState()
+    val isNotificationAccessGranted by viewModel.isNotificationAccessGranted.collectAsState()
     var showPrinterPickerModal by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        viewModel.checkNotificationAccess()
+    }
 
     val printPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -801,35 +808,123 @@ private fun DynamicQrisCardView(
             }
 
             if (status != "SUCCESS") {
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(6.dp))
+                if (isNotificationAccessGranted) {
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = Color(0xFF1B3828),
+                        border = BorderStroke(1.dp, Color(0xFF4ADE80).copy(alpha = 0.4f)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 10.dp, vertical = 8.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(8.dp)
+                                        .clip(CircleShape)
+                                        .background(Color(0xFF4ADE80))
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "Deteksi Notifikasi E-Wallet & Bank Aktif 📡",
+                                    color = Color(0xFF4ADE80),
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 11.sp
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = "Status otomatis LUNAS saat notifikasi dana masuk ${QrisEngine.formatRupiah(total)} diterima",
+                                color = Color(0xFFE2E8F0),
+                                fontSize = 10.sp,
+                                textAlign = TextAlign.Center
+                            )
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = Color(0xFF27523A),
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .clickable { viewModel.simulateIncomingPayment(total, "DANA") }
+                            ) {
+                                Text(
+                                    text = "⚡ Simulasi Pembayaran Masuk ${QrisEngine.formatRupiah(total)}",
+                                    color = Color(0xFF4ADE80),
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                                )
+                            }
+                        }
+                    }
+                } else {
+                    Surface(
+                        onClick = { viewModel.openNotificationAccessSettings() },
+                        shape = RoundedCornerShape(12.dp),
+                        color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.4f)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 10.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Notifications,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.error,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "Akses Notifikasi Belum Aktif",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.error
+                                )
+                                Text(
+                                    text = "Ketuk di sini untuk aktifkan pembacaan notifikasi agar otomatis Lunas.",
+                                    fontSize = 10.sp,
+                                    color = MaterialTheme.colorScheme.onErrorContainer
+                                )
+                            }
+                        }
+                    }
+                }
+            } else {
+                Spacer(modifier = Modifier.height(6.dp))
                 Surface(
-                    onClick = { viewModel.simulateCustomerPayment() },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(10.dp))
-                        .testTag("simulate_payment_button"),
-                    shape = RoundedCornerShape(10.dp),
-                    color = Color(0xFF1B3828)
+                    shape = RoundedCornerShape(12.dp),
+                    color = Color(0xFF1B3828),
+                    modifier = Modifier.fillMaxWidth()
                 ) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(vertical = 6.dp, horizontal = 10.dp),
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.Center
                     ) {
                         Icon(
-                            imageVector = Icons.Default.QrCodeScanner,
-                            contentDescription = "Scan QRIS",
+                            imageVector = Icons.Default.CheckCircle,
+                            contentDescription = null,
                             tint = Color(0xFF4ADE80),
-                            modifier = Modifier.size(15.dp)
+                            modifier = Modifier.size(16.dp)
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            text = "Silakan Scan QRIS untuk Membayar",
+                            text = "PEMBAYARAN DITERIMA & LUNAS! ✅",
                             color = Color(0xFF4ADE80),
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 12.sp
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold
                         )
                     }
                 }

@@ -20,9 +20,11 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.Brightness4
 import androidx.compose.material.icons.filled.BrightnessAuto
 import androidx.compose.material.icons.filled.Call
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.HelpOutline
 import androidx.compose.material.icons.filled.Info
@@ -37,12 +39,14 @@ import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.SupportAgent
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.RadioButton
@@ -50,6 +54,7 @@ import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -81,6 +86,11 @@ fun SettingsScreen(
     val receiptAddress by viewModel.receiptStoreAddress.collectAsState()
     val receiptPhone by viewModel.receiptStorePhone.collectAsState()
     val receiptFooter by viewModel.receiptFooterMessage.collectAsState()
+    val isNotificationAccessGranted by viewModel.isNotificationAccessGranted.collectAsState()
+
+    LaunchedEffect(Unit) {
+        viewModel.checkNotificationAccess()
+    }
 
     var addressInput by remember(receiptAddress) { mutableStateOf(receiptAddress) }
     var phoneInput by remember(receiptPhone) { mutableStateOf(receiptPhone) }
@@ -309,9 +319,9 @@ fun SettingsScreen(
 
         Spacer(modifier = Modifier.height(20.dp))
 
-        // --- Notification Test Section ---
+        // --- E-Wallet & Bank Notification Automation Section ---
         Text(
-            text = "Notifikasi Real-Time",
+            text = "Otomatisasi Pembacaan Notifikasi E-Wallet",
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onBackground
@@ -320,52 +330,100 @@ fun SettingsScreen(
         Spacer(modifier = Modifier.height(8.dp))
 
         Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(18.dp))
-                .clickable {
-                    NotificationHelper.showPaymentSuccessNotification(
-                        context = context,
-                        invoice = "INV-DEMO-9999",
-                        amount = 50000L,
-                        merchantName = "TOKO QRIS MANDIRI"
-                    )
-                },
+            modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(18.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            elevation = CardDefaults.cardElevation(defaultElevation = 1.5.dp)
         ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(44.dp)
-                        .clip(CircleShape)
-                        .background(Color(0xFF1B3828)),
-                    contentAlignment = Alignment.Center
+            Column(modifier = Modifier.padding(16.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Notifications,
-                        contentDescription = "Test Notifikasi",
-                        tint = Color(0xFF4ADE80),
-                        modifier = Modifier.size(24.dp)
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                        Box(
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(CircleShape)
+                                .background(if (isNotificationAccessGranted) Color(0xFF1B3828) else MaterialTheme.colorScheme.errorContainer),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = if (isNotificationAccessGranted) Icons.Default.CheckCircle else Icons.Default.Warning,
+                                contentDescription = null,
+                                tint = if (isNotificationAccessGranted) Color(0xFF4ADE80) else MaterialTheme.colorScheme.error,
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column {
+                            Text(
+                                text = "Status Akses Notifikasi",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 14.sp,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = if (isNotificationAccessGranted) "AKTIF - Mendeteksi Real-Time 🟢" else "NONAKTIF - Belum Diizinkan ⚠️",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = if (isNotificationAccessGranted) Color(0xFF4ADE80) else MaterialTheme.colorScheme.error
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                Text(
+                    text = "Aplikasi akan otomatis mengubah status transaksi dari PENDING menjadi LUNAS saat mendeteksi notifikasi dana masuk dari DANA, OVO, GoPay/GoBiz, ShopeePay, LinkAja, BCA, Mandiri, BRI, BNI, SeaBank, dll.",
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    lineHeight = 16.sp
+                )
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                // Button to Open Android Notification Listener Settings
+                Button(
+                    onClick = { viewModel.openNotificationAccessSettings() },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(46.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (isNotificationAccessGranted) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.primary,
+                        contentColor = if (isNotificationAccessGranted) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onPrimary
+                    )
+                ) {
+                    Icon(Icons.Default.Notifications, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = if (isNotificationAccessGranted) "Buka Pengaturan Akses Notifikasi HP" else "Aktifkan Akses Notifikasi Sekarang",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 13.sp
                     )
                 }
-                Spacer(modifier = Modifier.width(14.dp))
-                Column {
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Simulator Button for instant testing
+                OutlinedButton(
+                    onClick = {
+                        viewModel.simulateIncomingPayment(50000L, "DANA")
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(44.dp),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Icon(Icons.Default.Bolt, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "Uji Coba Push Notifikasi",
+                        text = "Uji Coba: Simulasi Dana Masuk DANA (Rp 50.000)",
                         fontWeight = FontWeight.Bold,
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Text(
-                        text = "Ketuk untuk memicu simulasi notifikasi transaksi masuk secara langsung.",
-                        fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        fontSize = 12.sp
                     )
                 }
             }

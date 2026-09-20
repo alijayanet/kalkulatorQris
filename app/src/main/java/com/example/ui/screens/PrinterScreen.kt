@@ -65,6 +65,9 @@ import com.example.ui.QrisViewModel
 import com.example.ui.theme.QrisGreen
 import com.example.ui.theme.QrisRed
 import com.example.ui.theme.QrisTeal
+import androidx.compose.foundation.Image
+import androidx.compose.runtime.remember
+import androidx.compose.ui.graphics.asImageBitmap
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -81,6 +84,7 @@ fun PrinterScreen(
     val displayTotal by viewModel.displayTotal.collectAsState()
     val activeInvoice by viewModel.activeInvoice.collectAsState()
     val customerName by viewModel.customerName.collectAsState()
+    val activeDynamicQris by viewModel.activeDynamicQris.collectAsState()
     val receiptAddress by viewModel.receiptStoreAddress.collectAsState()
     val receiptPhone by viewModel.receiptStorePhone.collectAsState()
     val receiptFooter by viewModel.receiptFooterMessage.collectAsState()
@@ -371,6 +375,43 @@ fun PrinterScreen(
                     Text(QrisEngine.formatRupiah(sampleTotal), fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Black, fontSize = 14.sp, color = Color.Black)
                 }
 
+                Text(
+                    text = "--------------------------------",
+                    fontFamily = FontFamily.Monospace,
+                    fontSize = 12.sp,
+                    color = Color.Gray
+                )
+
+                // QRIS Code Preview on Thermal Paper
+                val effectiveQrPayload = activeDynamicQris.ifBlank {
+                    QrisEngine.generateDynamicQris(merchantInfo.rawPayload, sampleTotal)
+                }
+                val qrBitmap = remember(effectiveQrPayload) {
+                    QrisEngine.generateQrBitmap(effectiveQrPayload, 200)
+                }
+
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "SCAN QRIS PEMBAYARAN",
+                    fontFamily = FontFamily.Monospace,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 11.sp,
+                    color = Color.Black
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Image(
+                    bitmap = qrBitmap.asImageBitmap(),
+                    contentDescription = "QRIS Thermal Preview",
+                    modifier = Modifier.size(130.dp)
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = "Scan via BCA, DANA, GoPay, OVO, dll.",
+                    fontFamily = FontFamily.Monospace,
+                    fontSize = 9.sp,
+                    color = Color.DarkGray
+                )
+                Spacer(modifier = Modifier.height(6.dp))
                 Text(
                     text = "--------------------------------",
                     fontFamily = FontFamily.Monospace,

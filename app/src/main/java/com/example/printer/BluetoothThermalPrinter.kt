@@ -191,6 +191,24 @@ object BluetoothThermalPrinter {
         append(ESC_BOLD_OFF)
         appendDashes()
 
+        // Simple and high-contrast QRIS Barcode section for customer scanning from receipt
+        if (receipt.qrisPayload.isNotBlank()) {
+            append(ESC_ALIGN_CENTER)
+            append(ESC_BOLD_ON)
+            appendLine("SCAN QRIS PEMBAYARAN")
+            append(ESC_BOLD_OFF)
+            append(byteArrayOf(0x1B, 0x33, 0x18)) // ESC 3 24: set line spacing
+            val qrBytes = generateEscPosRasterQr(receipt.qrisPayload, paperWidthChars)
+            if (qrBytes.isNotEmpty()) {
+                append(qrBytes)
+                appendLine()
+            }
+            append(byteArrayOf(0x1B, 0x32)) // ESC 2: default line spacing
+            appendLine("Scan via BCA, DANA, GoPay, OVO, dll.")
+            append(ESC_ALIGN_LEFT)
+            appendDashes()
+        }
+
         // Footer
         append(ESC_ALIGN_CENTER)
         val cleanFooter = receipt.footerMessage.ifBlank { "Terima Kasih Atas Kunjungan Anda!\nBarang yang sudah dibeli tidak dapat ditukar." }
@@ -204,6 +222,68 @@ object BluetoothThermalPrinter {
         append(ESC_FEED_PAPER)
 
         return out.toByteArray()
+    }
+
+    /**
+     * Converts QR payload into standard ESC/POS Raster Bit Image (GS v 0) centered on paper.
+     * Universally supported on all 58mm & 80mm Bluetooth POS thermal printers.
+     */
+    fun generateEscPosRasterQr(payload: String, paperWidthChars: Int = 32): ByteArray {
+        return try {
+            val qrSize = 256
+            val qrBitmap = QrisEngine.generateQrBitmap(payload, qrSize)
+            val totalDotsWidth = if (paperWidthChars >= 40) 576 else 384
+            val totalBytesWidth = totalDotsWidth / 8
+            val qrBytesWidth = qrSize / 8
+            val leftMarginBytes = maxOf(0, (totalBytesWidth - qrBytesWidth) / 2)
+            val rightMarginBytes = maxOf(0, totalBytesWidth - qrBytesWidth - leftMarginBytes)
+
+            val xL = (totalBytesWidth and 0xFF).toByte()
+            val xH = ((totalBytesWidth shr 8) and 0xFF).toByte()
+            val yL = (qrSize and 0xFF).toByte()
+            val yH = ((qrSize shr 8) and 0xFF).toByte()
+
+            val result = mutableListOf<Byte>()
+            // GS v 0 normal mode
+            result.add(0x1D.toByte())
+            result.add(0x76.toByte())
+            result.add(0x30.toByte())
+            result.add(0x00.toByte())
+            result.add(xL)
+            result.add(xH)
+            result.add(yL)
+            result.add(yH)
+
+            for (y in 0 until qrSize) {
+                // Left margin blank dots
+                for (m in 0 until leftMarginBytes) {
+                    result.add(0x00.toByte())
+                }
+                // Monochrome QR code dots (1 = black, 0 = white)
+                for (byteCol in 0 until qrBytesWidth) {
+                    var byteVal = 0
+                    for (bit in 0 until 8) {
+                        val px = byteCol * 8 + bit
+                        val color = qrBitmap.getPixel(px, y)
+                        val r = (color shr 16) and 0xFF
+                        val g = (color shr 8) and 0xFF
+                        val b = color and 0xFF
+                        val isBlack = (r + g + b) / 3 < 128
+                        if (isBlack) {
+                            byteVal = byteVal or (1 shl (7 - bit))
+                        }
+                    }
+                    result.add(byteVal.toByte())
+                }
+                // Right margin blank dots
+                for (m in 0 until rightMarginBytes) {
+                    result.add(0x00.toByte())
+                }
+            }
+            result.toByteArray()
+        } catch (e: Exception) {
+            byteArrayOf()
+        }
     }
 
     /**

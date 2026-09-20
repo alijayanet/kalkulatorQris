@@ -10,6 +10,8 @@ import com.example.data.AppDatabase
 import com.example.data.TransactionEntity
 import com.example.data.TransactionRepository
 import com.example.notification.NotificationHelper
+import com.example.notification.ParsedPayment
+import com.example.notification.PaymentDetectorManager
 import com.example.printer.BluetoothPrinterDevice
 import com.example.printer.BluetoothThermalPrinter
 import com.example.printer.ReceiptData
@@ -119,6 +121,13 @@ class QrisViewModel(application: Application) : AndroidViewModel(application) {
     private val _uiMessage = MutableStateFlow<String?>(null)
     val uiMessage: StateFlow<String?> = _uiMessage.asStateFlow()
 
+    // --- E-Wallet Notification Listener & Payment Detection State ---
+    private val _isNotificationAccessGranted = MutableStateFlow(false)
+    val isNotificationAccessGranted: StateFlow<Boolean> = _isNotificationAccessGranted.asStateFlow()
+
+    private val _lastDetectedPayment = MutableStateFlow<ParsedPayment?>(null)
+    val lastDetectedPayment: StateFlow<ParsedPayment?> = _lastDetectedPayment.asStateFlow()
+
     // --- Room Database Stream ---
     val allTransactions: StateFlow<List<TransactionEntity>> = repository.allTransactions
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
@@ -133,6 +142,8 @@ class QrisViewModel(application: Application) : AndroidViewModel(application) {
         loadFirstLaunchGuide()
         loadSavedPrinter()
         loadSavedReceiptSettings()
+        checkNotificationAccess()
+        startPaymentListener()
     }
 
     // ----------------------------------------------------
@@ -903,5 +914,116 @@ class QrisViewModel(application: Application) : AndroidViewModel(application) {
             repository.deleteAll()
             _uiMessage.value = "Semua riwayat transaksi telah dibersihkan"
         }
+    }
+
+    // ----------------------------------------------------
+    // E-Wallet & M-Banking Notification Auto-Detection
+    // ----------------------------------------------------
+    fun checkNotificationAccess() {
+        _isNotificationAccessGranted.value =
+            PaymentDetectorManager.isNotificationAccessGranted(getApplication())
+    }
+
+    fun openNotificationAccessSettings() {
+        PaymentDetectorManager.openNotificationAccessSettings(getApplication())
+    }
+
+    private fun startPaymentListener() {
+        viewModelScope.launch {
+            PaymentDetectorManager.paymentEvents.collect { payment ->
+                handleIncomingPayment(payment)
+            }
+        }
+    }
+
+    fun handleIncomingPayment(payment: ParsedPayment) {
+        _lastDetectedPayment.value = payment
+
+        val currentTotal = _displayTotal.value
+        val isPending = _activeStatus.value == "PENDING"
+        val isQrisActive = _isQrisMode.value
+
+        // If currently displaying active pending QRIS matching this exact nominal
+        if (isQrisActive && isPending && payment.amount == currentTotal) {
+            confirmPaymentSuccess(source = payment.appName)
+            _uiMessage.value = "Pembayaran ${QrisEngine.formatRupiah(payment.amount)} TERKONFIRMASI dari ${payment.appName}! 🎉"
+        } else {
+            // Check if there is any pending transaction in room database with matching amount from the last 30 minutes
+            viewModelScope.launch {
+                val allTx = allTransactions.value
+                val matchedTx = allTx.firstOrNull {
+                    it.status == "PENDING" && it.totalAmount == payment.amount && (System.currentTimeMillis() - it.timestamp < 30 * 60 * 1000)
+                }
+                if (matchedTx != null) {
+                    val updated = matchedTx.copy(
+                        status = "SUCCESS",
+                        paymentSource = payment.appName,
+                        note = "Lunas via ${payment.appName} (Otomatis)"
+                    )
+                    repository.update(updated)
+                    NotificationHelper.showPaymentSuccessNotification(
+                        context = getApplication(),
+                        invoice = updated.invoiceNumber,
+                        amount = updated.totalAmount,
+                        merchantName = updated.merchantName
+                    )
+                    _uiMessage.value = "Transaksi ${updated.invoiceNumber} (${QrisEngine.formatRupiah(payment.amount)}) LUNAS otomatis dari ${payment.appName}!"
+                }
+            }
+        }
+    }
+
+    fun confirmPaymentSuccess(source: String = "QRIS Dinamis") {
+        val total = _displayTotal.value
+        val invoice = _activeInvoice.value
+        val merchant = _merchantInfo.value
+
+        _activeStatus.value = "SUCCESS"
+
+        // Trigger push notification real-time
+        NotificationHelper.showPaymentSuccessNotification(
+            getApplication(),
+            invoice,
+            total,
+            merchant.merchantName
+        )
+
+        // Update transaction status in Room
+        viewModelScope.launch {
+            val txId = _currentTransactionId.value
+            val entity = TransactionEntity(
+                id = txId,
+                invoiceNumber = invoice,
+                customerName = _customerName.value.trim(),
+                nominal = total,
+                fee = 0,
+                totalAmount = total,
+                note = "Lunas via $source",
+                merchantName = merchant.merchantName,
+                qrisPayload = _activeDynamicQris.value,
+                status = "SUCCESS",
+                timestamp = System.currentTimeMillis(),
+                paymentSource = source
+            )
+            repository.update(entity)
+        }
+    }
+
+    /**
+     * Simulates an incoming payment from e-wallet/m-banking for instant testing.
+     */
+    fun simulateIncomingPayment(amount: Long? = null, appName: String = "DANA") {
+        val targetAmount = amount ?: _displayTotal.value
+        if (targetAmount <= 0) {
+            _uiMessage.value = "Generate QRIS terlebih dahulu untuk melakukan simulasi"
+            return
+        }
+        val simulated = ParsedPayment(
+            amount = targetAmount,
+            appName = appName,
+            packageName = "id.dana",
+            rawText = "Kamu menerima uang ${QrisEngine.formatRupiah(targetAmount)} dari Pembeli QRIS"
+        )
+        PaymentDetectorManager.postPayment(simulated)
     }
 }
