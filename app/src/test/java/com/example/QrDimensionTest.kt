@@ -11,7 +11,7 @@ class QrDimensionTest {
     fun testQrDimensions() {
         val qris = "00020101021226590014ID.CO.QRIS.WWW01189360091100223000160215ID10200234567890303UME51440014ID.CO.QRIS.WWW0215ID10200234567890303UME5204541153033605405500005802ID5914ALI JAYA STORE6007JAKARTA61051011062070703A016304A1B2"
         val hints = mapOf(
-            EncodeHintType.ERROR_CORRECTION to ErrorCorrectionLevel.L,
+            EncodeHintType.ERROR_CORRECTION to ErrorCorrectionLevel.M,
             EncodeHintType.MARGIN to 4,
             EncodeHintType.CHARACTER_SET to "UTF-8"
         )

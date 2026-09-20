@@ -248,9 +248,9 @@ object BluetoothThermalPrinter {
         return try {
             val safeContent = if (payload.isNotBlank()) payload.trim() else QrisEngine.DEFAULT_STATIC_QRIS
 
-            // 1. Generate QR matrix with standard 4-module quiet zone and Low error correction for maximum dot boldness
+            // 1. Generate QR matrix with standard 4-module quiet zone and Medium error correction (EMVCo QRIS standard)
             val hints = mapOf(
-                EncodeHintType.ERROR_CORRECTION to ErrorCorrectionLevel.L,
+                EncodeHintType.ERROR_CORRECTION to ErrorCorrectionLevel.M,
                 EncodeHintType.MARGIN to 4,
                 EncodeHintType.CHARACTER_SET to "UTF-8"
             )
