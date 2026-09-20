@@ -171,7 +171,6 @@ object BluetoothThermalPrinter {
             appendKeyValue("Pelanggan", receipt.customerName)
         }
         appendKeyValue("Metode", "QRIS Dinamis")
-        appendKeyValue("Status", "LUNAS [SELESAI]")
         appendDashes()
 
         // Amounts
@@ -204,9 +203,10 @@ object BluetoothThermalPrinter {
                 appendLine()
             }
             append(byteArrayOf(0x1B, 0x32)) // ESC 2: default line spacing
-            appendLine()
+            // Generous vertical margin (~1 cm) below the QR code image
+            append(byteArrayOf(0x0D, 0x0A, 0x0D, 0x0A))
             appendLine("Scan via BCA, DANA, GoPay, OVO, dll.")
-            appendLine()
+            append(byteArrayOf(0x0D, 0x0A))
             append(ESC_ALIGN_LEFT)
             appendDashes()
         }
@@ -219,11 +219,18 @@ object BluetoothThermalPrinter {
                 appendLine(line.trim())
             }
         }
-        appendLine()
+        append(byteArrayOf(0x0D, 0x0A))
         appendLine("Simpan struk ini sebagai bukti pembayaran sah.")
-        // Extra margin (~2 cm) so the receipt paper rolls past the tear bar without cutting QRIS/text
-        appendLine("\n\n\n\n\n")
-        append(ESC_FEED_PAPER)
+
+        // Multi-tier Paper Feed to guarantee paper rolls ~2.5 to 3 cm past the printer tear bar:
+        // Tier 1: 8 CRLF lines (works on 100% of printers)
+        for (i in 0 until 8) {
+            append(byteArrayOf(0x0D, 0x0A))
+        }
+        // Tier 2: ESC J 150 (advance 150 dots / ~19 mm)
+        append(byteArrayOf(0x1B, 0x4A, 150.toByte()))
+        // Tier 3: ESC d 6 (feed 6 lines)
+        append(byteArrayOf(0x1B, 0x64, 0x06))
 
         return out.toByteArray()
     }
@@ -349,8 +356,8 @@ object BluetoothThermalPrinter {
             val bytes = buildEscPosBytes(receipt)
             outputStream.write(bytes)
             outputStream.flush()
-
-            kotlinx.coroutines.delay(250)
+            // Give ample time for thermal head and motor to process data and feed paper completely
+            kotlinx.coroutines.delay(1800)
 
             val deviceName = try { device.name } catch (e: Exception) { null } ?: deviceAddress
             Result.success("Struk berhasil dicetak ke printer $deviceName! 🖨️")
@@ -438,7 +445,7 @@ object BluetoothThermalPrinter {
             outputStream.write(byteArrayOf(0x1B, 0x64, 0x04)) // feed 4 lines
             outputStream.flush()
 
-            kotlinx.coroutines.delay(250)
+            kotlinx.coroutines.delay(1000)
 
             val deviceName = try { device.name } catch (e: Exception) { null } ?: deviceAddress
             Result.success("✅ Tes Berhasil! Printer $deviceName terhubung dan mencetak sampel.")

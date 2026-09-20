@@ -340,7 +340,6 @@ fun PrinterScreen(
                     ReceiptMonoRow("Pelanggan", customerName)
                 }
                 ReceiptMonoRow("Metode", "QRIS Dinamis")
-                ReceiptMonoRow("Status", "LUNAS [SELESAI]")
 
                 Text(
                     text = "--------------------------------",

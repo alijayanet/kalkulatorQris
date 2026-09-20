@@ -562,7 +562,7 @@ fun SettingsScreen(
             horizontalArrangement = Arrangement.Center
         ) {
             Text(
-                text = "Kalkulator QRIS Dinamis v1.0 • ALIJAYA-NET",
+                text = "Kalkulator QRIS Dinamis v1.1 • ALIJAYA-NET",
                 fontSize = 11.sp,
                 color = MaterialTheme.colorScheme.outline
             )
