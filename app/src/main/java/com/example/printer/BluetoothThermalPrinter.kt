@@ -231,8 +231,8 @@ object BluetoothThermalPrinter {
         appendLine("================================")
         appendLine("*** TERIMA KASIH ***")
 
-        // Paper feed pas ~1 cm melewati gerigi pemotong (hemat kertas & rapi)
-        for (i in 0 until 3) {
+        // Paper feed pas ~1.2 cm melewati gerigi pemotong (agar tulisan terima kasih lewat dari pisau)
+        for (i in 0 until 4) {
             append(byteArrayOf(0x0D, 0x0A))
         }
 
@@ -241,7 +241,7 @@ object BluetoothThermalPrinter {
 
     /**
      * Converts QR payload into pixel-perfect ESC/POS Raster Bit Image (GS v 0).
-     * Uses ErrorCorrectionLevel.L and 4-module quiet zone with exact integer module dot scaling
+     * Uses ErrorCorrectionLevel.M and 4-module quiet zone with exact integer module dot scaling
      * to eliminate thermal dot bleed and guarantee instant scanning on smartphone cameras.
      */
     fun generateEscPosRasterQr(payload: String, paperWidthChars: Int = 32): ByteArray {
@@ -262,10 +262,11 @@ object BluetoothThermalPrinter {
             val totalBytesWidth = totalPaperDots / 8 // 48 bytes per line
 
             // 3. Integer module scaling:
-            // For 58mm paper: 4 dots/module gives 212x212 dots (~26.5mm), perfect centering, fits within 1 byte (yH=0) so no 16-bit firmware bugs.
-            // For 80mm paper: 5 or 6 dots/module (~33-40mm).
-            val maxAllowedDots = if (paperWidthChars >= 40) 400 else 240
-            val dotsPerModule = maxOf(3, minOf(if (paperWidthChars >= 40) 6 else 4, maxAllowedDots / moduleCount))
+            // For 58mm paper: 5 dots/module gives ~285x285 dots (~35.6 mm) on 384-dot paper,
+            // leaving ~6.2 mm margin on each side (large, bold, and clear on 58mm paper, no cutoff).
+            // For 80mm paper: 7 or 8 dots/module (~43-50 mm).
+            val maxAllowedDots = if (paperWidthChars >= 40) 500 else 330
+            val dotsPerModule = maxOf(4, minOf(if (paperWidthChars >= 40) 8 else 6, maxAllowedDots / moduleCount))
 
             val qrDotsWidth = moduleCount * dotsPerModule
             val qrDotsHeight = moduleCount * dotsPerModule
@@ -393,18 +394,18 @@ object BluetoothThermalPrinter {
 
             outputStream = socket.outputStream
             val bytes = buildEscPosBytes(receipt)
-            // Stream data in 512-byte packets to avoid serial buffer overrun on POS-58 printers
-            val chunkSize = 512
+            // Stream data in 256-byte packets with 40ms delay (~6.4 KB/s safe UART baudrate) to avoid serial FIFO buffer overrun on POS-58 printers
+            val chunkSize = 256
             var offset = 0
             while (offset < bytes.size) {
                 val len = minOf(chunkSize, bytes.size - offset)
                 outputStream.write(bytes, offset, len)
                 outputStream.flush()
                 offset += len
-                kotlinx.coroutines.delay(25)
+                kotlinx.coroutines.delay(40)
             }
-            // Give printer motor ample time to finish printing footer and feed paper completely
-            kotlinx.coroutines.delay(1200)
+            // Give physical printer printhead & motor ample time (~4.5s) to completely print full QR, footer, and feed paper past tear bar before closing socket
+            kotlinx.coroutines.delay(4500)
 
             val deviceName = try { device.name } catch (e: Exception) { null } ?: deviceAddress
             Result.success("Struk berhasil dicetak ke printer $deviceName! 🖨️")
