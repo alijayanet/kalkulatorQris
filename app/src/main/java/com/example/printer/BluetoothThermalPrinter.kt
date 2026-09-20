@@ -49,7 +49,7 @@ object BluetoothThermalPrinter {
     private val ESC_BOLD_OFF = byteArrayOf(0x1B, 0x45, 0x00)
     private val ESC_DOUBLE_HEIGHT_ON = byteArrayOf(0x1B, 0x21, 0x10)
     private val ESC_NORMAL = byteArrayOf(0x1B, 0x21, 0x00)
-    private val ESC_FEED_PAPER = byteArrayOf(0x1B, 0x64, 0x03)
+    private val ESC_FEED_PAPER = byteArrayOf(0x1B, 0x64, 0x06)
     private val ESC_CUT_PAPER = byteArrayOf(0x1D, 0x56, 0x41, 0x00)
 
     @SuppressLint("MissingPermission")
@@ -204,7 +204,9 @@ object BluetoothThermalPrinter {
                 appendLine()
             }
             append(byteArrayOf(0x1B, 0x32)) // ESC 2: default line spacing
+            appendLine()
             appendLine("Scan via BCA, DANA, GoPay, OVO, dll.")
+            appendLine()
             append(ESC_ALIGN_LEFT)
             appendDashes()
         }
@@ -217,8 +219,10 @@ object BluetoothThermalPrinter {
                 appendLine(line.trim())
             }
         }
+        appendLine()
         appendLine("Simpan struk ini sebagai bukti pembayaran sah.")
-        appendLine("\n\n\n")
+        // Extra margin (~2 cm) so the receipt paper rolls past the tear bar without cutting QRIS/text
+        appendLine("\n\n\n\n\n")
         append(ESC_FEED_PAPER)
 
         return out.toByteArray()
